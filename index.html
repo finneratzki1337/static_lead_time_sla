@@ -23,9 +23,12 @@
         >
       </p>
       <div class="title-row">
-        <div>
-          <h1>Airfreight Lead Time Estimator</h1>
-          <p class="subtitle">Deterministic, minute-level service analysis for airfreight operations.</p>
+        <div class="brand">
+          <img class="brand-logo" src="assets/timo_logo.png" alt="Timo" />
+          <div>
+            <h1>Airfreight Lead Time Estimator</h1>
+            <p class="subtitle">Deterministic, minute-level service analysis for airfreight operations.</p>
+          </div>
         </div>
         <button type="button" id="share-link" class="btn ghost">Share link</button>
       </div>
@@ -136,31 +139,7 @@
             </div>
           </section>
 
-          <section class="card" aria-labelledby="outputs-title">
-            <div class="card-header">
-              <h3 id="outputs-title">Output Controls</h3>
-              <p>Resolution affects charts and table granularity.</p>
-            </div>
-            <div class="form-grid">
-              <label class="field">
-                <span>Resolution</span>
-                <select id="resolution">
-                  <option value="1">1.0h</option>
-                  <option value="0.5">0.5h</option>
-                  <option value="0.25">0.25h</option>
-                </select>
-              </label>
-              <label class="field">
-                <span>Lookup target (hours)</span>
-                <input type="number" id="lookup" min="0" step="0.25" />
-                <small class="error" data-error-for="lookup"></small>
-              </label>
-              <div class="lookup-result">
-                <span class="label">Achievable service level</span>
-                <strong id="lookup-result">--</strong>
-              </div>
-            </div>
-          </section>
+          <!-- Output controls moved to the Outputs zone (rendered above charts) -->
         </div>
         <div class="calculate-row">
           <button type="button" id="calculate" class="btn">Calculate</button>
@@ -172,6 +151,22 @@
         <div class="zone-header">
           <h2 id="output-zone-title">Outputs</h2>
           <p>Charts and table render together after calculation.</p>
+        </div>
+        <div class="output-controls-row card" aria-label="Output controls">
+          <div class="output-controls-meta">
+            <h3>Output Controls</h3>
+            <p>Resolution affects charts and table granularity.</p>
+          </div>
+          <div class="output-controls-grid">
+            <label class="field">
+              <span>Resolution</span>
+              <select id="resolution">
+                <option value="1">1.0h</option>
+                <option value="0.5">0.5h</option>
+                <option value="0.25">0.25h</option>
+              </select>
+            </label>
+          </div>
         </div>
         <div class="output-grid" id="output-area">
           <div class="output-card">
@@ -194,6 +189,17 @@
                 </thead>
                 <tbody></tbody>
               </table>
+            </div>
+            <div class="table-lookup" aria-label="Lookup service level">
+              <label class="field">
+                <span>Lookup target (HH:MM)</span>
+                <input type="text" id="lookup" placeholder="21:30" />
+                <small class="error" data-error-for="lookup"></small>
+              </label>
+              <div class="lookup-result">
+                <span class="label">Achievable service level</span>
+                <strong id="lookup-result">--</strong>
+              </div>
             </div>
           </div>
         </div>

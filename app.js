@@ -65,6 +65,7 @@ let charts = {
 let currentData = null;
 
 const TIME_REGEX = /^([01]\d|2[0-3]):([0-5]\d)$/;
+const DURATION_REGEX = /^(\d+):([0-5]\d)$/;
 
 function parseTime(value) {
   const match = TIME_REGEX.exec(value.trim());
@@ -74,6 +75,16 @@ function parseTime(value) {
   const hours = Number.parseInt(match[1], 10);
   const minutes = Number.parseInt(match[2], 10);
   return hours * 60 + minutes;
+}
+
+function parseDurationHours(value) {
+  const match = DURATION_REGEX.exec(String(value).trim());
+  if (!match) {
+    return null;
+  }
+  const hours = Number.parseInt(match[1], 10);
+  const minutes = Number.parseInt(match[2], 10);
+  return hours + minutes / 60;
 }
 
 function formatTime(minutes) {
@@ -91,6 +102,21 @@ function parseNumber(value) {
     return null;
   }
   return num;
+}
+
+function parseHoursOrTime(value) {
+  if (value === null || value === undefined) {
+    return null;
+  }
+  const text = String(value).trim();
+  if (text === "") {
+    return null;
+  }
+  const duration = parseDurationHours(text);
+  if (duration !== null) {
+    return duration;
+  }
+  return parseNumber(text);
 }
 
 function showError(field, message) {
@@ -147,7 +173,7 @@ function readInputs() {
     sigma: parseNumber(elements.sigma.value),
     cutoff: elements.cutoff.value,
     resolution: parseNumber(elements.resolution.value),
-    lookup: parseNumber(elements.lookup.value),
+    lookup: elements.lookup.value,
   };
 }
 
@@ -205,8 +231,9 @@ function validateInputs(values) {
     }
   }
 
-  if (values.lookup === null || values.lookup < 0) {
-    showError("lookup", "Enter a number ≥ 0.");
+  const lookupHours = parseHoursOrTime(values.lookup);
+  if (lookupHours === null || lookupHours < 0) {
+    showError("lookup", "Use HH:MM (24h) or a number ≥ 0.");
     valid = false;
   }
 
@@ -296,14 +323,38 @@ function computeLeadTimes(values, depTODs) {
 
 function computeServiceLevels(leadTimes, weights, resolution) {
   const maxLead = Math.max(...leadTimes);
+  // round up to resolution to ensure we include the final point (where service level reaches 100%)
+  const finalTarget = Math.ceil((maxLead + 1e-9) / resolution) * resolution;
   const targets = [];
   const serviceLevels = [];
-  for (let t = 1; t <= maxLead + 0.001; t += resolution) {
+  // start at 0 to include sub-hour targets when resolution < 1
+  for (let t = 0; t <= finalTarget + 1e-9; t += resolution) {
     const sl = serviceLevelAt(t, leadTimes, weights);
     targets.push(Number.parseFloat(t.toFixed(2)));
     serviceLevels.push(sl);
   }
-  return { targets, serviceLevels };
+
+  // Trim to: last target with 0% service level -> first target with 100% service level.
+  const zeroEps = 1e-6;
+  const hundredEps = 100 - 1e-6;
+  let startIndex = 0;
+  for (let i = 0; i < serviceLevels.length; i += 1) {
+    if (serviceLevels[i] <= zeroEps) {
+      startIndex = i;
+    }
+  }
+  let endIndex = serviceLevels.findIndex((sl) => sl >= hundredEps);
+  if (endIndex < 0) {
+    endIndex = serviceLevels.length - 1;
+  }
+  if (startIndex > endIndex) {
+    startIndex = 0;
+  }
+
+  return {
+    targets: targets.slice(startIndex, endIndex + 1),
+    serviceLevels: serviceLevels.slice(startIndex, endIndex + 1),
+  };
 }
 
 function serviceLevelAt(target, leadTimes, weights) {
@@ -314,6 +365,74 @@ function serviceLevelAt(target, leadTimes, weights) {
     }
   }
   return total * 100;
+}
+
+function weightedQuantile(values, weights, quantile) {
+  const pairs = values.map((value, idx) => ({ value, weight: weights[idx] }));
+  pairs.sort((a, b) => a.value - b.value);
+  const totalWeight = pairs.reduce((sum, p) => sum + p.weight, 0);
+  if (totalWeight <= 0) {
+    return null;
+  }
+  const target = totalWeight * quantile;
+  let acc = 0;
+  for (let i = 0; i < pairs.length; i += 1) {
+    acc += pairs[i].weight;
+    if (acc >= target) {
+      return pairs[i].value;
+    }
+  }
+  return pairs[pairs.length - 1].value;
+}
+
+const markerPlugin = {
+  id: "leadTimeMarkers",
+  afterDatasetsDraw(chart, args, pluginOptions) {
+    const markers = (pluginOptions && pluginOptions.markers) || [];
+    if (!markers.length) {
+      return;
+    }
+
+    const { ctx, chartArea } = chart;
+    const xScale = chart.scales.x;
+    if (!ctx || !chartArea || !xScale) {
+      return;
+    }
+
+    ctx.save();
+    ctx.lineWidth = 1;
+    ctx.setLineDash([6, 4]);
+    ctx.textBaseline = "top";
+    ctx.font = "12px Orbitron, Segoe UI, sans-serif";
+
+    markers.forEach((marker) => {
+      if (marker == null || marker.x == null) {
+        return;
+      }
+      const x = xScale.getPixelForValue(marker.x);
+      if (!Number.isFinite(x)) {
+        return;
+      }
+      ctx.strokeStyle = marker.color;
+      ctx.beginPath();
+      ctx.moveTo(x, chartArea.top);
+      ctx.lineTo(x, chartArea.bottom);
+      ctx.stroke();
+
+      ctx.setLineDash([]);
+      ctx.fillStyle = marker.color;
+      const label = `${marker.label}: ${marker.x.toFixed(2)}h`;
+      const labelX = Math.min(Math.max(x + 6, chartArea.left + 6), chartArea.right - 140);
+      ctx.fillText(label, labelX, chartArea.top + 6);
+      ctx.setLineDash([6, 4]);
+    });
+
+    ctx.restore();
+  },
+};
+
+if (typeof Chart !== "undefined" && Chart.register) {
+  Chart.register(markerPlugin);
 }
 
 function computeFlightShares(depTODs, chosenDayOffset, chosenFlight, weights) {
@@ -342,58 +461,38 @@ function computeFlightShares(depTODs, chosenDayOffset, chosenFlight, weights) {
 }
 
 function updateCharts(data) {
-  const distributionLabels = data.distribution.map((_, idx) =>
-    idx % 120 === 0 ? formatTime(idx) : ""
-  );
+  updateDistributionChart(data.distribution);
 
-  const distributionDataset = {
-    label: "Order distribution",
-    data: data.distribution,
-    borderColor: "rgba(141, 246, 255, 0.9)",
-    backgroundColor: "rgba(141, 246, 255, 0.15)",
-    tension: 0.25,
-    fill: true,
-    pointRadius: 0,
-  };
-
-  if (!charts.distribution) {
-    charts.distribution = new Chart(document.getElementById("distribution-chart"), {
-      type: "line",
-      data: {
-        labels: distributionLabels,
-        datasets: [distributionDataset],
-      },
-      options: chartOptions({ yLabel: "Density" }),
-    });
-  } else {
-    charts.distribution.data.labels = distributionLabels;
-    charts.distribution.data.datasets[0].data = data.distribution;
-    charts.distribution.update();
-  }
+  const servicePoints = data.targets.map((target, idx) => ({
+    x: target,
+    y: data.serviceLevels[idx],
+  }));
 
   const serviceDataset = {
     label: "Service level",
-    data: data.serviceLevels,
+    data: servicePoints,
     borderColor: "rgba(255, 75, 210, 0.9)",
     backgroundColor: "rgba(255, 75, 210, 0.15)",
     tension: 0.25,
     fill: true,
     pointRadius: 0,
+    pointHitRadius: 14,
   };
 
   if (!charts.service) {
     charts.service = new Chart(document.getElementById("service-chart"), {
       type: "line",
       data: {
-        labels: data.targets,
         datasets: [serviceDataset],
       },
-      options: chartOptions({ xLabel: "Lead time (h)", yLabel: "Service level (%)" }),
+      options: chartOptions({
+        kind: "service",
+        xLabel: "Lead time (h)",
+        yLabel: "Service level (%)",
+      }),
     });
   } else {
-    charts.service.data.labels = data.targets;
-    charts.service.data.datasets[0].data = data.serviceLevels;
-    charts.service.update();
+    charts.service.data.datasets[0].data = servicePoints;
   }
 
   const flightLabels = data.flightLabels;
@@ -415,19 +514,67 @@ function updateCharts(data) {
         labels: flightLabels,
         datasets: [flightDataset],
       },
-      options: chartOptions({ yLabel: "% of requests" }),
+      options: chartOptions({ kind: "flight", yLabel: "% of requests" }),
     });
   } else {
     charts.flight.data.labels = flightLabels;
     charts.flight.data.datasets[0].data = data.flightShares;
     charts.flight.update();
   }
+
+  // Update lead-time markers (avg and p95) if we have the raw lead time distribution.
+  if (charts.service && data.leadTimes && data.distribution) {
+    const mean = data.leadTimes.reduce(
+      (sum, value, idx) => sum + value * data.distribution[idx],
+      0
+    );
+    const p95 = weightedQuantile(data.leadTimes, data.distribution, 0.95);
+    charts.service.options.plugins.leadTimeMarkers.markers = [
+      { label: "Avg", x: mean, color: "rgba(141, 246, 255, 0.9)" },
+      { label: "P95", x: p95 ?? mean, color: "rgba(255, 184, 77, 0.9)" },
+    ];
+  }
+
+  if (charts.service) {
+    charts.service.update();
+  }
 }
 
-function chartOptions({ xLabel = "", yLabel = "" }) {
-  return {
+function updateDistributionChart(distribution) {
+  const distributionLabels = distribution.map((_, idx) => (idx % 120 === 0 ? formatTime(idx) : ""));
+  const distributionDataset = {
+    label: "Order distribution",
+    data: distribution,
+    borderColor: "rgba(141, 246, 255, 0.9)",
+    backgroundColor: "rgba(141, 246, 255, 0.15)",
+    tension: 0.25,
+    fill: true,
+    pointRadius: 0,
+    pointHitRadius: 10,
+  };
+
+  if (!charts.distribution) {
+    charts.distribution = new Chart(document.getElementById("distribution-chart"), {
+      type: "line",
+      data: { labels: distributionLabels, datasets: [distributionDataset] },
+      options: chartOptions({ kind: "distribution", yLabel: "Density" }),
+    });
+  } else {
+    charts.distribution.data.labels = distributionLabels;
+    charts.distribution.data.datasets[0].data = distribution;
+    charts.distribution.update();
+  }
+}
+
+function chartOptions({ kind = "", xLabel = "", yLabel = "" }) {
+  const isPercent = yLabel && yLabel.includes("%");
+  const opts = {
     responsive: true,
     maintainAspectRatio: false,
+    interaction:
+      kind === "service" || kind === "distribution"
+        ? { mode: "index", intersect: false }
+        : undefined,
     scales: {
       x: {
         title: {
@@ -451,12 +598,55 @@ function chartOptions({ xLabel = "", yLabel = "" }) {
     plugins: {
       legend: { display: false },
       tooltip: {
+        mode: kind === "service" || kind === "distribution" ? "index" : undefined,
+        intersect: kind === "service" || kind === "distribution" ? false : undefined,
         callbacks: {
-          label: (context) => `${context.parsed.y.toFixed(2)}`,
+          title: (ctx) => {
+            const item = ctx && ctx[0];
+            if (!item) {
+              return "";
+            }
+            if (kind === "service") {
+              const x = item.parsed && item.parsed.x !== undefined ? item.parsed.x : Number(item.label);
+              return Number.isFinite(x) ? `Target: ${x.toFixed(2)}h` : "Target";
+            }
+            if (kind === "flight") {
+              return `Flight: ${item.label}`;
+            }
+            if (kind === "distribution") {
+              return `Time: ${formatTime(item.dataIndex)}`;
+            }
+            return item.label ? String(item.label) : "";
+          },
+          label: (context) => {
+            const val = context.parsed && context.parsed.y !== undefined ? context.parsed.y : context.parsed;
+            const num = Number(val ?? 0);
+            if (isPercent) {
+              return `Value: ${num.toFixed(2)}%`;
+            }
+            if (kind === "distribution") {
+              return `Value: ${num.toFixed(6)}`;
+            }
+            return `Value: ${num.toFixed(2)}`;
+          },
         },
       },
+      leadTimeMarkers: { markers: [] },
     },
   };
+
+  if (kind === "service") {
+    opts.scales.x.type = "linear";
+  }
+
+  if (isPercent) {
+    opts.scales.y.min = 0;
+    opts.scales.y.max = 100;
+    opts.scales.y.ticks = opts.scales.y.ticks || {};
+    opts.scales.y.ticks.callback = (v) => `${v}%`;
+  }
+
+  return opts;
 }
 
 function updateTable(targets, serviceLevels) {
@@ -467,7 +657,7 @@ function updateTable(targets, serviceLevels) {
     const targetCell = document.createElement("td");
     targetCell.textContent = target.toFixed(2);
     const slCell = document.createElement("td");
-    slCell.textContent = serviceLevels[index].toFixed(2);
+    slCell.textContent = `${serviceLevels[index].toFixed(2)}%`;
     row.appendChild(targetCell);
     row.appendChild(slCell);
     tbody.appendChild(row);
@@ -481,6 +671,35 @@ function updateLookup(target, leadTimes, weights) {
   }
   const service = serviceLevelAt(target, leadTimes, weights);
   elements.lookupResult.textContent = `${service.toFixed(2)}%`;
+}
+
+function refreshOrderBehaviorChart() {
+  const values = readInputs();
+  const mode = values.distribution;
+
+  if (mode === "normal") {
+    const peakMinute = parseTime(values.peak);
+    const sigmaOk = values.sigma !== null && values.sigma > 0;
+    const safeValues = {
+      ...values,
+      peak: peakMinute === null ? DEFAULTS.peak : values.peak,
+      sigma: sigmaOk ? values.sigma : DEFAULTS.sigma,
+    };
+    updateDistributionChart(buildDistribution(safeValues));
+    return;
+  }
+
+  if (mode === "cutoff") {
+    // Refresh as soon as a valid cutoff time is entered.
+    if (parseTime(values.cutoff) === null) {
+      return;
+    }
+    updateDistributionChart(buildDistribution(values));
+    return;
+  }
+
+  // Uniform mode.
+  updateDistributionChart(buildDistribution(values));
 }
 
 function disableOutputs(message) {
@@ -507,7 +726,7 @@ function saveState(values) {
     ...values,
     sigma: values.sigma ?? DEFAULTS.sigma,
     resolution: values.resolution ?? DEFAULTS.resolution,
-    lookup: values.lookup ?? DEFAULTS.lookup,
+    lookup: values.lookup === "" ? "" : values.lookup ?? DEFAULTS.lookup,
   };
   localStorage.setItem(stateKey, JSON.stringify(payload));
 }
@@ -604,11 +823,12 @@ function updateApp() {
   const flightShares = [...flightShare.shares, flightShare.nextDayShare];
 
   currentData = { leadTimes, distribution };
-  updateLookup(values.lookup, leadTimes, distribution);
+  updateLookup(parseHoursOrTime(values.lookup), leadTimes, distribution);
   updateCharts({
     distribution,
     targets,
     serviceLevels,
+    leadTimes,
     flightLabels,
     flightShares,
   });
@@ -630,6 +850,7 @@ function init() {
   applyState(initialState);
   setIncotermDefaults(initialState.incoterm);
   updateDistributionVisibility(initialState.distribution);
+  refreshOrderBehaviorChart();
 
   Object.values(elements).forEach((el) => {
     if (el instanceof HTMLInputElement || el instanceof HTMLSelectElement) {
@@ -655,13 +876,26 @@ function init() {
 
   elements.distribution.addEventListener("change", (event) => {
     updateDistributionVisibility(event.target.value);
+    refreshOrderBehaviorChart();
+  });
+
+  elements.peak.addEventListener("input", () => {
+    if (elements.distribution.value === "normal") {
+      refreshOrderBehaviorChart();
+    }
+  });
+
+  elements.sigma.addEventListener("input", () => {
+    if (elements.distribution.value === "normal") {
+      refreshOrderBehaviorChart();
+    }
   });
 
   elements.lookup.addEventListener("input", () => {
     const values = readInputs();
     saveState(values);
     if (currentData) {
-      updateLookup(values.lookup, currentData.leadTimes, currentData.distribution);
+      updateLookup(parseHoursOrTime(values.lookup), currentData.leadTimes, currentData.distribution);
     } else {
       elements.lookupResult.textContent = "--";
     }
@@ -672,6 +906,22 @@ function init() {
   });
 
   elements.calculate.addEventListener("click", updateApp);
+
+  // special-case cutoff input: update distribution chart immediately when in cutoff mode
+  elements.cutoff.addEventListener("input", () => {
+    saveState(readInputs());
+    if (elements.distribution.value === "cutoff") {
+      refreshOrderBehaviorChart();
+      // also update lookup if we already have lead times computed
+      if (currentData && currentData.leadTimes) {
+        const values = readInputs();
+        const distribution = buildDistribution(values);
+        updateLookup(parseHoursOrTime(values.lookup), currentData.leadTimes, distribution);
+      }
+    } else {
+      markOutputsStale();
+    }
+  });
 
   markOutputsStale();
 }
