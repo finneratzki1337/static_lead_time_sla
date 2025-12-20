@@ -1,4 +1,4 @@
-# Airfreight Lead Time Estimator (Static Web App) — agent.md
+# AIRFREIGHT SERVICE LEVEL ESTIMATOR (Static Web App) — agent.md
 
 ## 0) One-line disclaimer (must be visible at the very top)
 **Best possible lead time — not considering variability, strikes, weather, offloads\***  
@@ -7,7 +7,7 @@
 ---
 
 ## 1) Goal
-Build a **fully static** single-page web app (“Airfreight Lead Time Estimator”) that runs on **GitHub Pages** (no backend).
+Build a **fully static** single-page web app (“AIRFREIGHT SERVICE LEVEL ESTIMATOR”) that runs on **GitHub Pages** (no backend).
 Users configure operational parameters and see:
 1) Chart: **Service level (%) vs lead time target (hours)**  
 2) Chart: **Distribution of requests per flight (%)** + extra bar **“First flight next day”**  

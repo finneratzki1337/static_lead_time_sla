@@ -1,4 +1,4 @@
-# Airfreight Lead Time Estimator (Static)
+# AIRFREIGHT SERVICE LEVEL ESTIMATOR (Static)
 
 **Best possible lead time — not considering variability, strikes, weather, offloads***  \
 *This tool uses deterministic inputs and ideal operational conditions. Real-world performance may be worse.*
