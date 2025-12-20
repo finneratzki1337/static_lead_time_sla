@@ -66,11 +66,35 @@ let currentData = null;
 
 const TIME_REGEX = /^([01]\d|2[0-3]):([0-5]\d)$/;
 const DURATION_REGEX = /^(\d+):([0-5]\d)$/;
+const COMPACT_TIME_REGEX = /^(\d{3,4})$/;
+const COMPACT_DURATION_REGEX = /^(\d{3,})$/;
+
+function parseCompactHHMM(text) {
+  const digits = String(text).trim();
+  if (!/^\d{3,}$/.test(digits)) {
+    return null;
+  }
+  const minutes = Number.parseInt(digits.slice(-2), 10);
+  const hours = Number.parseInt(digits.slice(0, -2), 10);
+  if (!Number.isFinite(hours) || !Number.isFinite(minutes) || minutes < 0 || minutes > 59) {
+    return null;
+  }
+  return { hours, minutes };
+}
 
 function parseTime(value) {
-  const match = TIME_REGEX.exec(value.trim());
+  const trimmed = value.trim();
+  const match = TIME_REGEX.exec(trimmed);
   if (!match) {
-    return null;
+    const compactMatch = COMPACT_TIME_REGEX.exec(trimmed);
+    if (!compactMatch) {
+      return null;
+    }
+    const parsed = parseCompactHHMM(trimmed);
+    if (!parsed || parsed.hours > 23) {
+      return null;
+    }
+    return parsed.hours * 60 + parsed.minutes;
   }
   const hours = Number.parseInt(match[1], 10);
   const minutes = Number.parseInt(match[2], 10);
@@ -78,9 +102,18 @@ function parseTime(value) {
 }
 
 function parseDurationHours(value) {
-  const match = DURATION_REGEX.exec(String(value).trim());
+  const trimmed = String(value).trim();
+  const match = DURATION_REGEX.exec(trimmed);
   if (!match) {
-    return null;
+    const compactMatch = COMPACT_DURATION_REGEX.exec(trimmed);
+    if (!compactMatch) {
+      return null;
+    }
+    const parsed = parseCompactHHMM(trimmed);
+    if (!parsed) {
+      return null;
+    }
+    return parsed.hours + parsed.minutes / 60;
   }
   const hours = Number.parseInt(match[1], 10);
   const minutes = Number.parseInt(match[2], 10);
@@ -517,7 +550,7 @@ function validateInputs(values) {
   timeFields.forEach((field) => {
     const value = values[field];
     if (value === null) {
-      showError(field, "Use HH:MM.");
+      showError(field, "Use HH:MM or HHMM (e.g. 0300). ");
       valid = false;
     }
   });
@@ -528,7 +561,7 @@ function validateInputs(values) {
     .filter(Boolean);
   const invalidFlights = flightTimes.filter((time) => parseTime(time) === null);
   if (flightTimes.length === 0) {
-    showError("flights", "Enter at least one HH:MM time.");
+    showError("flights", "Enter at least one HH:MM (or HHMM) time.");
     valid = false;
   } else if (invalidFlights.length > 0) {
     showError("flights", `Invalid time(s): ${invalidFlights.join(", ")}`);
@@ -538,18 +571,18 @@ function validateInputs(values) {
   if (values.distribution === "normal") {
     const peakMinute = parseTime(values.peak);
     if (peakMinute === null) {
-      showError("peak", "Use HH:MM (24h).");
+      showError("peak", "Use HH:MM (24h) or HHMM.");
       valid = false;
     }
     if (values.sigma === null || values.sigma <= 0) {
-      showError("sigma", "Use HH:MM (> 00:00).");
+      showError("sigma", "Use HH:MM (> 00:00) or HHMM.");
       valid = false;
     }
   }
 
   if (values.distribution === "cutoff") {
     if (parseTime(values.cutoff) === null) {
-      showError("cutoff", "Use HH:MM (24h).");
+      showError("cutoff", "Use HH:MM (24h) or HHMM.");
       valid = false;
     }
   }
