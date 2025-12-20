@@ -14,26 +14,20 @@
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
   </head>
   <body>
-    <header class="page-header">
-      <p class="disclaimer">
-        <strong>Best possible lead time — not considering variability, strikes, weather, offloads*</strong><br />
-        <span
-          >*This tool uses deterministic inputs and ideal operational conditions. Real-world performance may be
-          worse.</span
-        >
-      </p>
-      <div class="title-row">
-        <div class="brand">
+    <div class="sticky-header" role="banner">
+      <div class="sticky-inner">
+        <div class="sticky-brand">
           <img class="brand-logo" src="assets/timo_logo.png" alt="Timo" />
-          <div>
-            <h1>Airfreight Lead Time Estimator</h1>
-            <p class="subtitle">Deterministic, minute-level service analysis for airfreight operations.</p>
-          </div>
+          <span class="sticky-title">Airfreight Lead Time Estimator</span>
         </div>
-        <button type="button" id="share-link" class="btn ghost">Share link</button>
+        <div class="sticky-actions">
+          <button type="button" id="calculate" class="btn">Calculate</button>
+          <button type="button" id="share-link" class="btn ghost">
+            Share link with these Parameters
+          </button>
+        </div>
       </div>
-    </header>
-
+    </div>
     <main class="layout">
       <section class="zone input-zone" aria-labelledby="inputs-title">
         <div class="zone-header">
@@ -141,10 +135,6 @@
 
           <!-- Output controls moved to the Outputs zone (rendered above charts) -->
         </div>
-        <div class="calculate-row">
-          <button type="button" id="calculate" class="btn">Calculate</button>
-          <span class="calculate-hint">Charts update only when you press Calculate.</span>
-        </div>
       </section>
 
       <section class="zone output-zone" aria-labelledby="output-zone-title">
@@ -204,8 +194,34 @@
           </div>
         </div>
         <p class="output-error" id="output-error" aria-live="polite"></p>
+
+        <section id="explain" class="explain-card" aria-label="Explanation">
+          <div class="explain-title">EXPLAIN IT FOR DUMMIES:</div>
+          <div id="explainBody" class="explain-body" aria-live="polite"></div>
+          <div class="explain-gif" aria-hidden="true">
+            <img src="assets/mind_blown.gif" alt="" />
+          </div>
+        </section>
       </section>
     </main>
+    <header class="page-header">
+      <p class="disclaimer">
+        <strong>Best possible lead time — not considering variability, strikes, weather, offloads*</strong><br />
+        <span
+          >*This tool uses deterministic inputs and ideal operational conditions. Real-world performance may be
+          worse.</span
+        >
+      </p>
+      <div class="title-row">
+        <div class="brand">
+          <img class="brand-logo" src="assets/timo_logo.png" alt="Timo" />
+          <div>
+            <h1>Airfreight Lead Time Estimator</h1>
+            <p class="subtitle">Deterministic, minute-level service analysis for airfreight operations.</p>
+          </div>
+        </div>
+      </div>
+    </header>
 
     <script src="app.js"></script>
   </body>

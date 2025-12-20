@@ -93,6 +93,300 @@ function formatTime(minutes) {
   return `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}`;
 }
 
+function formatAbsTime(minAbs) {
+  const dayOffset = Math.floor(minAbs / 1440);
+  const tod = ((minAbs % 1440) + 1440) % 1440;
+  const base = formatTime(tod);
+  if (dayOffset > 0) {
+    return `${base} (+${dayOffset}d)`;
+  }
+  if (dayOffset < 0) {
+    return `${base} (prev day)`;
+  }
+  return base;
+}
+
+function formatCutoffTOD(minTOD) {
+  if (minTOD >= 0) {
+    return formatTime(minTOD);
+  }
+  return `${formatTime(1440 + (minTOD % 1440))} (prev day)`;
+}
+
+function formatHours(hours) {
+  return `${hours.toFixed(2)}h`;
+}
+
+function formatPercent(value) {
+  return `${value.toFixed(2)}%`;
+}
+
+function formatDurationMinutes(minutes) {
+  const mins = Math.round(minutes);
+  const sign = mins < 0 ? "-" : "";
+  const abs = Math.abs(mins);
+  const h = Math.floor(abs / 60);
+  const m = abs % 60;
+  if (h <= 0) {
+    return `${sign}${m}m`;
+  }
+  if (m === 0) {
+    return `${sign}${h}h`;
+  }
+  return `${sign}${h}h ${m}m`;
+}
+
+function token(text, className) {
+  const el = document.createElement("span");
+  el.className = `explain-token ${className}`.trim();
+  el.textContent = text;
+  return el;
+}
+
+function addSentence(container, parts) {
+  const p = document.createElement("p");
+  p.style.margin = "0";
+  parts.forEach((part) => {
+    if (typeof part === "string") {
+      p.appendChild(document.createTextNode(part));
+    } else if (part instanceof Node) {
+      p.appendChild(part);
+    }
+  });
+  container.appendChild(p);
+}
+
+function computeExplainMetrics(values, depTODs, distribution, leadTimes, chosenDayOffset, chosenFlight, chosenDepAbs) {
+  const bestLT = Math.min(...leadTimes);
+  const worstLT = Math.max(...leadTimes);
+  const mBest = leadTimes.indexOf(bestLT);
+  const mWorst = leadTimes.indexOf(worstLT);
+
+  const avgLT = leadTimes.reduce((sum, lt, idx) => sum + lt * distribution[idx], 0);
+  const p50LT = weightedQuantile(leadTimes, distribution, 0.5);
+  const p95LT = weightedQuantile(leadTimes, distribution, 0.95);
+
+  let shareNextDay = 0;
+  for (let i = 0; i < chosenDayOffset.length; i += 1) {
+    if (chosenDayOffset[i] >= 1) {
+      shareNextDay += distribution[i];
+    }
+  }
+
+  const sameDayShares = depTODs.map(() => 0);
+  for (let i = 0; i < chosenFlight.length; i += 1) {
+    if (chosenDayOffset[i] === 0) {
+      const idx = depTODs.indexOf(chosenFlight[i]);
+      if (idx >= 0) {
+        sameDayShares[idx] += distribution[i];
+      }
+    }
+  }
+  let topIndex = 0;
+  for (let i = 1; i < sameDayShares.length; i += 1) {
+    if (sameDayShares[i] > sameDayShares[topIndex]) {
+      topIndex = i;
+    }
+  }
+  const topFlightTOD = depTODs[topIndex] ?? null;
+  const topFlightShare = sameDayShares[topIndex] ?? 0;
+
+  const rfcTransitM = (values.rfc + values.transit) * 60;
+  const afterDepH = values.flight + values.toa + values.customs + values.lastMile;
+
+  const cutoffs = depTODs.map((depTOD) => {
+    const cutoffTOD = depTOD - values.lat * 60 - rfcTransitM;
+    return { depTOD, cutoffTOD };
+  });
+
+  // Narrative scenario using worst-case minute.
+  const tOrderTOD = mWorst;
+  const tTerminalAbs = tOrderTOD + rfcTransitM;
+  const chosenDep = chosenDepAbs[mWorst];
+
+  // Build the global departure schedule for up to 3 days (consistent with computeLeadTimes).
+  const schedule = [];
+  for (let d = 0; d <= 3; d += 1) {
+    depTODs.forEach((tod) => schedule.push(d * 1440 + tod));
+  }
+  schedule.sort((a, b) => a - b);
+
+  let missedDepAbs = null;
+  for (let i = schedule.length - 1; i >= 0; i -= 1) {
+    if (schedule[i] < chosenDep) {
+      missedDepAbs = schedule[i];
+      break;
+    }
+  }
+
+  const latM = values.lat * 60;
+  const missedAcceptanceClose = missedDepAbs !== null ? missedDepAbs - latM : null;
+  const lateByM = missedAcceptanceClose !== null ? tTerminalAbs - missedAcceptanceClose : null;
+  const waitToNextM = chosenDep - tTerminalAbs;
+
+  return {
+    bestLT,
+    worstLT,
+    mBest,
+    mWorst,
+    avgLT,
+    p50LT,
+    p95LT,
+    shareNextDay,
+    topFlightTOD,
+    topFlightShare,
+    cutoffs,
+    rfcTransitH: values.rfc + values.transit,
+    afterDepH,
+    incoterm: values.incoterm,
+    incotermAfterH: values.customs + values.lastMile,
+    narrative: {
+      tOrderTOD,
+      tTerminalAbs,
+      missedDepAbs,
+      missedAcceptanceClose,
+      lateByM,
+      waitToNextM,
+      chosenDepAbs: chosenDep,
+    },
+  };
+}
+
+function renderExplain({ valid, message, metrics, depTODs }) {
+  const container = document.getElementById("explainBody");
+  if (!container) {
+    return;
+  }
+  container.replaceChildren();
+
+  if (!valid) {
+    addSentence(container, [message || "Fix inputs to see the explanation."]);
+    return;
+  }
+
+  const m = metrics;
+
+  // Required sentences.
+  addSentence(container, [
+    "Your best case lead time is ",
+    token(formatHours(m.bestLT), "tok-metric"),
+    ".",
+  ]);
+
+  addSentence(container, [
+    "Your worst case lead time is ",
+    token(formatHours(m.worstLT), "tok-metric"),
+    " because you can miss a departure and get pushed to the next one.",
+  ]);
+
+  // Narrative example.
+  const n = m.narrative;
+  const orderAt = token(formatTime(n.tOrderTOD), "tok-good");
+  const terminalAt = token(formatAbsTime(n.tTerminalAbs), "tok-metric");
+  if (n.missedDepAbs !== null && n.missedAcceptanceClose !== null && n.lateByM !== null) {
+    const missedDep = token(formatAbsTime(n.missedDepAbs), "tok-bad");
+    const missedClose = token(formatAbsTime(n.missedAcceptanceClose), "tok-bad");
+    const lateBy = token(formatDurationMinutes(Math.max(0, n.lateByM)), "tok-bad");
+    const wait = token(formatDurationMinutes(Math.max(0, n.waitToNextM)), "tok-metric");
+    const chosenDep = token(formatAbsTime(n.chosenDepAbs), "tok-good");
+
+    addSentence(container, [
+      "Imagine you order at ",
+      orderAt,
+      ". You reach the cargo terminal at ",
+      terminalAt,
+      " (RFC + transport). Acceptance for the ",
+      missedDep,
+      " flight closes at ",
+      missedClose,
+      " (LAT), so you miss it by ",
+      lateBy,
+      ". Then you wait ",
+      wait,
+      " until the next departure at ",
+      chosenDep,
+      ".",
+    ]);
+  } else {
+    const chosenDep = token(formatAbsTime(n.chosenDepAbs), "tok-good");
+    const wait = token(formatDurationMinutes(Math.max(0, n.waitToNextM)), "tok-metric");
+    addSentence(container, [
+      "Imagine you order at ",
+      orderAt,
+      ". You reach the cargo terminal at ",
+      terminalAt,
+      ". There isn’t an earlier departure you could have caught. You wait ",
+      wait,
+      " until the next departure at ",
+      chosenDep,
+      ".",
+    ]);
+  }
+
+  addSentence(container, [
+    "On average, your lead time will be ",
+    token(formatHours(m.avgLT), "tok-metric"),
+    " and ",
+    token("95%", "tok-good"),
+    " of your shipments will be faster than ",
+    token(formatHours(m.p95LT ?? m.worstLT), "tok-metric"),
+    ".",
+  ]);
+
+  // Smart statements (at least 4).
+  addSentence(container, [
+    "Fixed time you can’t escape: ",
+    token(formatHours(m.rfcTransitH), "tok-metric"),
+    " before departure + ",
+    token(formatHours(m.afterDepH), "tok-metric"),
+    " after departure. Everything else is just waiting for a flight.",
+  ]);
+
+  addSentence(container, [
+    "With your current setup, ",
+    token(formatPercent(m.shareNextDay * 100), "tok-bad"),
+    " of orders miss all same-day flights and roll into tomorrow.",
+  ]);
+
+  if (m.topFlightTOD !== null) {
+    addSentence(container, [
+      "Most orders end up on the ",
+      token(formatTime(m.topFlightTOD), "tok-good"),
+      " departure (",
+      token(formatPercent(m.topFlightShare * 100), "tok-metric"),
+      " of requests).",
+    ]);
+  }
+
+  // Cutoff lines for each flight.
+  const list = document.createElement("div");
+  list.style.display = "grid";
+  list.style.gap = "0.35rem";
+  m.cutoffs.forEach(({ depTOD, cutoffTOD }) => {
+    const line = document.createElement("div");
+    line.appendChild(document.createTextNode("To catch the "));
+    line.appendChild(token(formatTime(depTOD), "tok-good"));
+    line.appendChild(document.createTextNode(" flight you must order by "));
+    line.appendChild(token(formatCutoffTOD(Math.round(cutoffTOD)), cutoffTOD < 0 ? "tok-bad" : "tok-metric"));
+    line.appendChild(document.createTextNode("."));
+    list.appendChild(line);
+  });
+  container.appendChild(list);
+
+  // Incoterm impact.
+  if (m.incotermAfterH > 0) {
+    addSentence(container, [
+      "Door delivery (DAP) adds ",
+      token(formatHours(m.incotermAfterH), "tok-metric"),
+      " after destination availability.",
+    ]);
+  } else {
+    addSentence(container, [
+      "DPU stops at the cargo terminal — no customs/last-mile included.",
+    ]);
+  }
+}
+
 function parseNumber(value) {
   if (value === "") {
     return null;
@@ -287,6 +581,7 @@ function computeLeadTimes(values, depTODs) {
   const leadTimes = new Array(1440);
   const chosenDayOffset = new Array(1440);
   const chosenFlight = new Array(1440);
+  const chosenDepAbs = new Array(1440);
 
   for (let m = 0; m < 1440; m += 1) {
     const tReady = m + rfcM;
@@ -316,9 +611,10 @@ function computeLeadTimes(values, depTODs) {
     leadTimes[m] = (tDone - m) / 60;
     chosenDayOffset[m] = selected.dayOffset;
     chosenFlight[m] = selected.depTOD;
+    chosenDepAbs[m] = selected.depAbs;
   }
 
-  return { leadTimes, chosenDayOffset, chosenFlight };
+  return { leadTimes, chosenDayOffset, chosenFlight, chosenDepAbs };
 }
 
 function computeServiceLevels(leadTimes, weights, resolution) {
@@ -706,6 +1002,7 @@ function disableOutputs(message) {
   elements.outputArea.classList.add("output-disabled");
   elements.outputError.textContent = message;
   elements.lookupResult.textContent = "--";
+  renderExplain({ valid: false, message });
 }
 
 function enableOutputs() {
@@ -719,6 +1016,10 @@ function markOutputsStale() {
   elements.outputError.textContent = "Press Calculate to refresh outputs.";
   elements.lookupResult.textContent = "--";
   currentData = null;
+  renderExplain({
+    valid: false,
+    message: "Press Calculate to refresh the explanation.",
+  });
 }
 
 function saveState(values) {
@@ -780,7 +1081,7 @@ function copyShareLink(values) {
     navigator.clipboard.writeText(url);
     elements.shareLink.textContent = "Link copied";
     setTimeout(() => {
-      elements.shareLink.textContent = "Share link";
+      elements.shareLink.textContent = "Share link with these Parameters";
     }, 1500);
   } else {
     window.prompt("Copy link:", url);
@@ -812,7 +1113,7 @@ function updateApp() {
     return;
   }
 
-  const { leadTimes, chosenDayOffset, chosenFlight } = leadTimeResult;
+  const { leadTimes, chosenDayOffset, chosenFlight, chosenDepAbs } = leadTimeResult;
   const { targets, serviceLevels } = computeServiceLevels(
     leadTimes,
     distribution,
@@ -833,6 +1134,18 @@ function updateApp() {
     flightShares,
   });
   updateTable(targets, serviceLevels);
+
+  const explainMetrics = computeExplainMetrics(
+    values,
+    depTODs,
+    distribution,
+    leadTimes,
+    chosenDayOffset,
+    chosenFlight,
+    chosenDepAbs
+  );
+  renderExplain({ valid: true, metrics: explainMetrics, depTODs });
+
   enableOutputs();
 }
 

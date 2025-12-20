@@ -23,8 +23,52 @@ body {
   letter-spacing: 0.02em;
 }
 
+.sticky-header {
+  position: sticky;
+  top: 0;
+  z-index: 1000;
+  background: rgba(19, 14, 36, 0.92);
+  border-bottom: 1px solid rgba(141, 246, 255, 0.18);
+  backdrop-filter: blur(10px);
+}
+
+.sticky-inner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.65rem clamp(1.5rem, 3vw, 3.5rem);
+}
+
+.sticky-brand {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  min-width: 0;
+}
+
+.sticky-title {
+  font-weight: 700;
+  font-size: 1rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.sticky-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+.sticky-actions .btn {
+  padding: 0.55rem 1.1rem;
+}
+
 .page-header {
-  padding: 2rem clamp(1.5rem, 3vw, 3.5rem) 1rem;
+  padding: 1.5rem clamp(1.5rem, 3vw, 3.5rem) 1rem;
   border-bottom: 1px solid rgba(141, 246, 255, 0.2);
 }
 
@@ -53,12 +97,23 @@ body {
 }
 
 .brand-logo {
-  width: 15%;
-  height: 15%;
+  width: 44px;
+  height: 44px;
   object-fit: contain;
   border-radius: 10px;
   border: 1px solid rgba(141, 246, 255, 0.22);
   background: rgba(7, 4, 16, 0.45);
+}
+
+.sticky-header .brand-logo {
+  width: 34px;
+  height: 34px;
+}
+
+@media (max-width: 700px) {
+  .sticky-title {
+    font-size: 0.95rem;
+  }
 }
 
 h1 {
@@ -365,6 +420,72 @@ tbody td {
 .output-error {
   margin-top: 1rem;
   color: #ff8abf;
+}
+
+.explain-card {
+  margin-top: 1.25rem;
+  padding: 1.25rem;
+  border-radius: 16px;
+  border: 1px solid rgba(141, 246, 255, 0.22);
+  background: rgba(9, 5, 20, 0.75);
+  box-shadow: 0 15px 40px rgba(9, 6, 19, 0.45);
+}
+
+.explain-title {
+  font-weight: 700;
+  color: var(--accent);
+  letter-spacing: 0.08em;
+  margin-bottom: 0.75rem;
+}
+
+.explain-body {
+  display: grid;
+  gap: 0.75rem;
+  color: var(--text);
+  font-size: 0.92rem;
+  line-height: 1.35;
+}
+
+.explain-token {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.15rem 0.55rem;
+  border-radius: 999px;
+  border: 1px solid rgba(141, 246, 255, 0.26);
+  background: rgba(7, 4, 16, 0.55);
+  box-shadow: 0 0 18px rgba(141, 246, 255, 0.14);
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  white-space: nowrap;
+}
+
+.explain-token.tok-metric {
+  color: var(--accent);
+}
+
+.explain-token.tok-good {
+  color: var(--accent);
+  border-color: rgba(141, 246, 255, 0.38);
+}
+
+.explain-token.tok-bad {
+  color: #ff8abf;
+  border-color: rgba(255, 75, 210, 0.38);
+  box-shadow: 0 0 18px rgba(255, 75, 210, 0.14);
+}
+
+.explain-gif {
+  margin-top: 0.75rem;
+  display: flex;
+  justify-content: center;
+}
+
+.explain-gif img {
+  width: min(420px, 100%);
+  border-radius: 14px;
+  border: 1px solid rgba(255, 75, 210, 0.25);
+  box-shadow: 0 0 20px rgba(255, 75, 210, 0.18);
 }
 
 .output-disabled {
