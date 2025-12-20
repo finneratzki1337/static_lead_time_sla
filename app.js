@@ -145,7 +145,6 @@ function token(text, className) {
 
 function addSentence(container, parts) {
   const p = document.createElement("p");
-  p.style.margin = "0";
   parts.forEach((part) => {
     if (typeof part === "string") {
       p.appendChild(document.createTextNode(part));
@@ -154,6 +153,10 @@ function addSentence(container, parts) {
     }
   });
   container.appendChild(p);
+}
+
+function addParagraph(container, parts) {
+  addSentence(container, parts);
 }
 
 function computeExplainMetrics(values, depTODs, distribution, leadTimes, chosenDayOffset, chosenFlight, chosenDepAbs) {
@@ -260,20 +263,17 @@ function renderExplain({ valid, message, metrics, depTODs }) {
   container.replaceChildren();
 
   if (!valid) {
-    addSentence(container, [message || "Fix inputs to see the explanation."]);
+    addParagraph(container, [message || "Fix inputs to see the explanation."]);
     return;
   }
 
   const m = metrics;
 
   // Required sentences.
-  addSentence(container, [
+  addParagraph(container, [
     "Your best case lead time is ",
     token(formatHours(m.bestLT), "tok-metric"),
-    ".",
-  ]);
-
-  addSentence(container, [
+    ". ",
     "Your worst case lead time is ",
     token(formatHours(m.worstLT), "tok-metric"),
     " because you can miss a departure and get pushed to the next one.",
@@ -290,7 +290,7 @@ function renderExplain({ valid, message, metrics, depTODs }) {
     const wait = token(formatDurationMinutes(Math.max(0, n.waitToNextM)), "tok-metric");
     const chosenDep = token(formatAbsTime(n.chosenDepAbs), "tok-good");
 
-    addSentence(container, [
+    addParagraph(container, [
       "Imagine you order at ",
       orderAt,
       ". You reach the cargo terminal at ",
@@ -310,7 +310,7 @@ function renderExplain({ valid, message, metrics, depTODs }) {
   } else {
     const chosenDep = token(formatAbsTime(n.chosenDepAbs), "tok-good");
     const wait = token(formatDurationMinutes(Math.max(0, n.waitToNextM)), "tok-metric");
-    addSentence(container, [
+    addParagraph(container, [
       "Imagine you order at ",
       orderAt,
       ". You reach the cargo terminal at ",
@@ -323,65 +323,60 @@ function renderExplain({ valid, message, metrics, depTODs }) {
     ]);
   }
 
-  addSentence(container, [
+  // Smart statements (at least 4), grouped to reduce line breaks.
+  const grouped = [
     "On average, your lead time will be ",
     token(formatHours(m.avgLT), "tok-metric"),
     " and ",
     token("95%", "tok-good"),
     " of your shipments will be faster than ",
     token(formatHours(m.p95LT ?? m.worstLT), "tok-metric"),
-    ".",
-  ]);
-
-  // Smart statements (at least 4).
-  addSentence(container, [
+    ". ",
     "Fixed time you can’t escape: ",
     token(formatHours(m.rfcTransitH), "tok-metric"),
     " before departure + ",
     token(formatHours(m.afterDepH), "tok-metric"),
-    " after departure. Everything else is just waiting for a flight.",
-  ]);
-
-  addSentence(container, [
+    " after departure. Everything else is just waiting for a flight. ",
     "With your current setup, ",
     token(formatPercent(m.shareNextDay * 100), "tok-bad"),
     " of orders miss all same-day flights and roll into tomorrow.",
-  ]);
+  ];
 
   if (m.topFlightTOD !== null) {
-    addSentence(container, [
+    grouped.push(
+      " ",
       "Most orders end up on the ",
       token(formatTime(m.topFlightTOD), "tok-good"),
       " departure (",
       token(formatPercent(m.topFlightShare * 100), "tok-metric"),
-      " of requests).",
-    ]);
+      " of requests)."
+    );
   }
+  addParagraph(container, grouped);
 
-  // Cutoff lines for each flight.
-  const list = document.createElement("div");
-  list.style.display = "grid";
-  list.style.gap = "0.35rem";
-  m.cutoffs.forEach(({ depTOD, cutoffTOD }) => {
-    const line = document.createElement("div");
-    line.appendChild(document.createTextNode("To catch the "));
-    line.appendChild(token(formatTime(depTOD), "tok-good"));
-    line.appendChild(document.createTextNode(" flight you must order by "));
-    line.appendChild(token(formatCutoffTOD(Math.round(cutoffTOD)), cutoffTOD < 0 ? "tok-bad" : "tok-metric"));
-    line.appendChild(document.createTextNode("."));
-    list.appendChild(line);
+  // Cutoff lines for each flight (kept readable, but fewer hard line breaks).
+  const cutoffParts = [];
+  m.cutoffs.forEach(({ depTOD, cutoffTOD }, idx) => {
+    if (idx > 0) {
+      cutoffParts.push(" ");
+    }
+    cutoffParts.push("To catch the ");
+    cutoffParts.push(token(formatTime(depTOD), "tok-good"));
+    cutoffParts.push(" flight you must order by ");
+    cutoffParts.push(token(formatCutoffTOD(Math.round(cutoffTOD)), cutoffTOD < 0 ? "tok-bad" : "tok-metric"));
+    cutoffParts.push(".");
   });
-  container.appendChild(list);
+  addParagraph(container, cutoffParts);
 
   // Incoterm impact.
   if (m.incotermAfterH > 0) {
-    addSentence(container, [
+    addParagraph(container, [
       "Door delivery (DAP) adds ",
       token(formatHours(m.incotermAfterH), "tok-metric"),
       " after destination availability.",
     ]);
   } else {
-    addSentence(container, [
+    addParagraph(container, [
       "DPU stops at the cargo terminal — no customs/last-mile included.",
     ]);
   }

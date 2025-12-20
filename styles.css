@@ -8,6 +8,9 @@
   --accent: #8df6ff;
   --accent-2: #ff4bd2;
   --glow: 0 0 25px rgba(141, 246, 255, 0.35);
+  --good: rgba(141, 246, 255, 0.92);
+  --bad: rgba(255, 75, 210, 0.92);
+  --glow-good: 0 0 25px rgba(141, 246, 255, 0.28);
 }
 
 * {
@@ -250,6 +253,16 @@ select:focus {
   box-shadow: var(--glow);
 }
 
+#calculate.btn {
+  border-color: rgba(77, 255, 122, 0.9);
+  background: linear-gradient(135deg, rgba(77, 255, 122, 0.32), rgba(77, 255, 122, 0.12));
+  box-shadow: var(--glow-good);
+}
+
+#calculate.btn:hover {
+  box-shadow: 0 0 32px rgba(77, 255, 122, 0.55);
+}
+
 .calculate-row {
   display: flex;
   align-items: center;
@@ -429,35 +442,50 @@ tbody td {
   border: 1px solid rgba(141, 246, 255, 0.22);
   background: rgba(9, 5, 20, 0.75);
   box-shadow: 0 15px 40px rgba(9, 6, 19, 0.45);
+  font-family: "Holtwood One SC", "Orbitron", "Segoe UI", sans-serif;
+  text-transform: uppercase;
+  font-weight: 400;
 }
 
 .explain-title {
   font-weight: 700;
+  font-size: xx-large
   color: var(--accent);
   letter-spacing: 0.08em;
   margin-bottom: 0.75rem;
+  font-style: italic;
+  transform: skew(-6deg);
+  transform-origin: left top;
+  text-shadow: 0 0 14px rgba(141, 246, 255, 0.18);
 }
 
 .explain-body {
-  display: grid;
-  gap: 0.75rem;
+  display: block;
   color: var(--text);
-  font-size: 0.92rem;
-  line-height: 1.35;
+  font-size: 0.96rem;
+  line-height: 1.28;
+  font-style: italic;
+  transform: skew(-6deg);
+  transform-origin: left top;
+  text-shadow: 0 0 10px rgba(141, 246, 255, 0.12);
+}
+
+.explain-body p {
+  margin: 0 0 0.55rem;
+}
+
+.explain-body p:last-child {
+  margin-bottom: 0;
 }
 
 .explain-token {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.35rem;
-  padding: 0.15rem 0.55rem;
-  border-radius: 999px;
-  border: 1px solid rgba(141, 246, 255, 0.26);
-  background: rgba(7, 4, 16, 0.55);
-  box-shadow: 0 0 18px rgba(141, 246, 255, 0.14);
-  font-weight: 700;
-  letter-spacing: 0.04em;
-  white-space: nowrap;
+  display: inline-block;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  box-shadow: none;
+  font-weight: 500;
+  letter-spacing: 0.02em;
 }
 
 .explain-token.tok-metric {
@@ -465,14 +493,11 @@ tbody td {
 }
 
 .explain-token.tok-good {
-  color: var(--accent);
-  border-color: rgba(141, 246, 255, 0.38);
+  color: var(--good);
 }
 
 .explain-token.tok-bad {
-  color: #ff8abf;
-  border-color: rgba(255, 75, 210, 0.38);
-  box-shadow: 0 0 18px rgba(255, 75, 210, 0.14);
+  color: var(--bad);
 }
 
 .explain-gif {
