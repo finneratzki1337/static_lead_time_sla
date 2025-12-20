@@ -117,6 +117,12 @@ body {
   .sticky-title {
     font-size: 0.95rem;
   }
+
+  #share-link {
+    padding: 0.3rem 0.6rem;
+    font-size: 0.75rem;
+    line-height: 1.1;
+  }
 }
 
 h1 {
@@ -448,14 +454,12 @@ tbody td {
 }
 
 .explain-title {
-  font-weight: 700;
-  font-size: xx-large
+  font-weight: 600;
+  font-size: 2rem;
   color: var(--accent);
   letter-spacing: 0.08em;
   margin-bottom: 0.75rem;
   font-style: italic;
-  transform: skew(-6deg);
-  transform-origin: left top;
   text-shadow: 0 0 14px rgba(141, 246, 255, 0.18);
 }
 
@@ -465,8 +469,6 @@ tbody td {
   font-size: 0.96rem;
   line-height: 1.28;
   font-style: italic;
-  transform: skew(-6deg);
-  transform-origin: left top;
   text-shadow: 0 0 10px rgba(141, 246, 255, 0.12);
 }
 

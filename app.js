@@ -843,7 +843,8 @@ function updateCharts(data) {
 }
 
 function updateDistributionChart(distribution) {
-  const distributionLabels = distribution.map((_, idx) => (idx % 120 === 0 ? formatTime(idx) : ""));
+  // keep labels for every minute, but show only hourly ticks via tick callback
+  const distributionLabels = distribution.map((_, idx) => formatTime(idx));
   const distributionDataset = {
     label: "Order distribution",
     data: distribution,
@@ -859,7 +860,7 @@ function updateDistributionChart(distribution) {
     charts.distribution = new Chart(document.getElementById("distribution-chart"), {
       type: "line",
       data: { labels: distributionLabels, datasets: [distributionDataset] },
-      options: chartOptions({ kind: "distribution", yLabel: "Density" }),
+      options: chartOptions({ kind: "distribution", xLabel: "Time of day (HH:MM)", yLabel: "" }),
     });
   } else {
     charts.distribution.data.labels = distributionLabels;
@@ -936,6 +937,32 @@ function chartOptions({ kind = "", xLabel = "", yLabel = "" }) {
       leadTimeMarkers: { markers: [] },
     },
   };
+
+  if (kind === "distribution") {
+    // show labels at 4-hour intervals (00:00, 04:00, 08:00, ...)
+    opts.scales.x.ticks = Object.assign({}, opts.scales.x.ticks, {
+      callback: function (value, index) {
+        // On a category scale, Chart.js passes the tick value (index).
+        const label = this && typeof this.getLabelForValue === "function" ? this.getLabelForValue(value) : value;
+        if (typeof label === "string" && label.endsWith(":00")) {
+          const hours = Number.parseInt(label.slice(0, 2), 10);
+          if (Number.isFinite(hours) && hours % 4 === 0) {
+            return label;
+          }
+        }
+        return "";
+      },
+      autoSkip: true,
+      maxRotation: 0,
+      minRotation: 0,
+      maxTicksLimit: 6,
+    });
+
+    // Hide y-axis tick labels for this preview chart.
+    opts.scales.y.ticks = Object.assign({}, opts.scales.y.ticks, {
+      display: false,
+    });
+  }
 
   if (kind === "service") {
     opts.scales.x.type = "linear";
@@ -1153,6 +1180,15 @@ function updateApp() {
   renderExplain({ valid: true, metrics: explainMetrics, depTODs });
 
   enableOutputs();
+
+  // After a successful calculation, jump to the main service chart.
+  const chart = document.getElementById("service-chart");
+  const stickyHeader = document.querySelector(".sticky-header");
+  if (chart) {
+    const headerOffset = stickyHeader ? stickyHeader.getBoundingClientRect().height : 0;
+    const y = chart.getBoundingClientRect().top + window.scrollY - headerOffset - 12;
+    window.scrollTo({ top: Math.max(0, y), behavior: "smooth" });
+  }
 }
 
 function setIncotermDefaults(incoterm) {
