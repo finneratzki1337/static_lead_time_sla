@@ -32,136 +32,155 @@
     </header>
 
     <main class="layout">
-      <section class="card" aria-labelledby="parameters-title">
-        <div class="card-header">
-          <h2 id="parameters-title">Parameters</h2>
-          <p>Define your incoterm and processing times.</p>
+      <section class="zone input-zone" aria-labelledby="inputs-title">
+        <div class="zone-header">
+          <h2 id="inputs-title">Inputs</h2>
+          <p>Set parameters first, then press Calculate for instant results.</p>
         </div>
-        <div class="form-grid">
-          <label class="field">
-            <span>Incoterm</span>
-            <select id="incoterm">
-              <option value="DPU">DPU (at cargo terminal)</option>
-              <option value="DAP">DAP (at customer door)</option>
-            </select>
-          </label>
-          <label class="field">
-            <span>RFC time (h)</span>
-            <input type="number" id="rfc" min="0" step="0.25" />
-            <small class="error" data-error-for="rfc"></small>
-          </label>
-          <label class="field">
-            <span>Transit to terminal (h)</span>
-            <input type="number" id="transit" min="0" step="0.25" />
-            <small class="error" data-error-for="transit"></small>
-          </label>
-          <label class="field">
-            <span>LAT before departure (h)</span>
-            <input type="number" id="lat" min="0" step="0.25" />
-            <small class="error" data-error-for="lat"></small>
-          </label>
-          <label class="field">
-            <span>Flight time (h)</span>
-            <input type="number" id="flight" min="0" step="0.25" />
-            <small class="error" data-error-for="flight"></small>
-          </label>
-          <label class="field">
-            <span>TOA at destination (h)</span>
-            <input type="number" id="toa" min="0" step="0.25" />
-            <small class="error" data-error-for="toa"></small>
-          </label>
-          <label class="field">
-            <span>Customs clearance (h)</span>
-            <input type="number" id="customs" min="0" step="0.25" />
-            <small class="error" data-error-for="customs"></small>
-          </label>
-          <label class="field">
-            <span>Last mile (h)</span>
-            <input type="number" id="lastMile" min="0" step="0.25" />
-            <small class="error" data-error-for="lastMile"></small>
-          </label>
+        <div class="input-grid">
+          <section class="card" aria-labelledby="parameters-title">
+            <div class="card-header">
+              <h3 id="parameters-title">Parameters</h3>
+              <p>Define your incoterm and processing times.</p>
+            </div>
+            <div class="form-grid">
+              <label class="field">
+                <span>Incoterm</span>
+                <select id="incoterm">
+                  <option value="DPU">DPU (at cargo terminal)</option>
+                  <option value="DAP">DAP (at customer door)</option>
+                </select>
+              </label>
+              <label class="field">
+                <span>RFC time (h)</span>
+                <input type="number" id="rfc" min="0" step="0.25" />
+                <small class="error" data-error-for="rfc"></small>
+              </label>
+              <label class="field">
+                <span>Transit to terminal (h)</span>
+                <input type="number" id="transit" min="0" step="0.25" />
+                <small class="error" data-error-for="transit"></small>
+              </label>
+              <label class="field">
+                <span>LAT before departure (h)</span>
+                <input type="number" id="lat" min="0" step="0.25" />
+                <small class="error" data-error-for="lat"></small>
+              </label>
+              <label class="field">
+                <span>Flight time (h)</span>
+                <input type="number" id="flight" min="0" step="0.25" />
+                <small class="error" data-error-for="flight"></small>
+              </label>
+              <label class="field">
+                <span>TOA at destination (h)</span>
+                <input type="number" id="toa" min="0" step="0.25" />
+                <small class="error" data-error-for="toa"></small>
+              </label>
+              <label class="field">
+                <span>Customs clearance (h)</span>
+                <input type="number" id="customs" min="0" step="0.25" />
+                <small class="error" data-error-for="customs"></small>
+              </label>
+              <label class="field">
+                <span>Last mile (h)</span>
+                <input type="number" id="lastMile" min="0" step="0.25" />
+                <small class="error" data-error-for="lastMile"></small>
+              </label>
+            </div>
+          </section>
+
+          <section class="card" aria-labelledby="flights-title">
+            <div class="card-header">
+              <h3 id="flights-title">Flights</h3>
+              <p>List scheduled departures to evaluate capacity.</p>
+            </div>
+            <label class="field">
+              <span>Departures (HH:MM, comma-separated)</span>
+              <input type="text" id="flights" placeholder="09:00, 21:00" />
+              <small class="error" data-error-for="flights"></small>
+            </label>
+          </section>
+
+          <section class="card" aria-labelledby="order-title">
+            <div class="card-header">
+              <h3 id="order-title">Order Behavior</h3>
+              <p>Model the order distribution across a day.</p>
+            </div>
+            <div class="form-grid">
+              <label class="field">
+                <span>Distribution</span>
+                <select id="distribution">
+                  <option value="uniform">Uniform (flat)</option>
+                  <option value="normal">Normal distribution</option>
+                  <option value="cutoff">Order everything before…</option>
+                </select>
+              </label>
+              <label class="field" data-field="peak">
+                <span>Peak time (HH:MM)</span>
+                <input type="text" id="peak" placeholder="12:00" />
+                <small class="error" data-error-for="peak"></small>
+              </label>
+              <label class="field" data-field="sigma">
+                <span>Sigma (hours)</span>
+                <input type="number" id="sigma" min="0" step="0.25" />
+                <small class="error" data-error-for="sigma"></small>
+              </label>
+              <label class="field" data-field="cutoff">
+                <span>Cutoff time (HH:MM)</span>
+                <input type="text" id="cutoff" placeholder="15:00" />
+                <small class="error" data-error-for="cutoff"></small>
+              </label>
+            </div>
+            <div class="mini-chart">
+              <canvas id="distribution-chart" height="120"></canvas>
+            </div>
+          </section>
+
+          <section class="card" aria-labelledby="outputs-title">
+            <div class="card-header">
+              <h3 id="outputs-title">Output Controls</h3>
+              <p>Resolution affects charts and table granularity.</p>
+            </div>
+            <div class="form-grid">
+              <label class="field">
+                <span>Resolution</span>
+                <select id="resolution">
+                  <option value="1">1.0h</option>
+                  <option value="0.5">0.5h</option>
+                  <option value="0.25">0.25h</option>
+                </select>
+              </label>
+              <label class="field">
+                <span>Lookup target (hours)</span>
+                <input type="number" id="lookup" min="0" step="0.25" />
+                <small class="error" data-error-for="lookup"></small>
+              </label>
+              <div class="lookup-result">
+                <span class="label">Achievable service level</span>
+                <strong id="lookup-result">--</strong>
+              </div>
+            </div>
+          </section>
+        </div>
+        <div class="calculate-row">
+          <button type="button" id="calculate" class="btn">Calculate</button>
+          <span class="calculate-hint">Charts update only when you press Calculate.</span>
         </div>
       </section>
 
-      <section class="card" aria-labelledby="flights-title">
-        <div class="card-header">
-          <h2 id="flights-title">Flights</h2>
-          <p>List scheduled departures to evaluate capacity.</p>
-        </div>
-        <label class="field">
-          <span>Departures (HH:MM, comma-separated)</span>
-          <input type="text" id="flights" placeholder="09:00, 21:00" />
-          <small class="error" data-error-for="flights"></small>
-        </label>
-      </section>
-
-      <section class="card" aria-labelledby="order-title">
-        <div class="card-header">
-          <h2 id="order-title">Order Behavior</h2>
-          <p>Model the order distribution across a day.</p>
-        </div>
-        <div class="form-grid">
-          <label class="field">
-            <span>Distribution</span>
-            <select id="distribution">
-              <option value="uniform">Uniform (flat)</option>
-              <option value="normal">Normal distribution</option>
-              <option value="cutoff">Order everything before…</option>
-            </select>
-          </label>
-          <label class="field" data-field="peak">
-            <span>Peak time (HH:MM)</span>
-            <input type="text" id="peak" placeholder="12:00" />
-            <small class="error" data-error-for="peak"></small>
-          </label>
-          <label class="field" data-field="sigma">
-            <span>Sigma (hours)</span>
-            <input type="number" id="sigma" min="0" step="0.25" />
-            <small class="error" data-error-for="sigma"></small>
-          </label>
-          <label class="field" data-field="cutoff">
-            <span>Cutoff time (HH:MM)</span>
-            <input type="text" id="cutoff" placeholder="15:00" />
-            <small class="error" data-error-for="cutoff"></small>
-          </label>
-        </div>
-        <div class="mini-chart">
-          <canvas id="distribution-chart" height="120"></canvas>
-        </div>
-      </section>
-
-      <section class="card" aria-labelledby="outputs-title">
-        <div class="card-header">
-          <h2 id="outputs-title">Outputs</h2>
-          <p>Resolution affects charts and table granularity.</p>
-        </div>
-        <div class="form-grid">
-          <label class="field">
-            <span>Resolution</span>
-            <select id="resolution">
-              <option value="1">1.0h</option>
-              <option value="0.5">0.5h</option>
-              <option value="0.25">0.25h</option>
-            </select>
-          </label>
-          <label class="field">
-            <span>Lookup target (hours)</span>
-            <input type="number" id="lookup" min="0" step="0.25" />
-            <small class="error" data-error-for="lookup"></small>
-          </label>
-          <div class="lookup-result">
-            <span class="label">Achievable service level</span>
-            <strong id="lookup-result">--</strong>
-          </div>
+      <section class="zone output-zone" aria-labelledby="output-zone-title">
+        <div class="zone-header">
+          <h2 id="output-zone-title">Outputs</h2>
+          <p>Charts and table render together after calculation.</p>
         </div>
         <div class="output-grid" id="output-area">
           <div class="output-card">
             <h3>Service level vs target</h3>
-            <canvas id="service-chart" height="220"></canvas>
+            <canvas id="service-chart" height="180"></canvas>
           </div>
           <div class="output-card">
             <h3>Requests per flight</h3>
-            <canvas id="flight-chart" height="220"></canvas>
+            <canvas id="flight-chart" height="180"></canvas>
           </div>
           <div class="output-card table-card">
             <h3>Lead time table</h3>

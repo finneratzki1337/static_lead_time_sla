@@ -43,6 +43,7 @@ const elements = {
   outputArea: document.getElementById("output-area"),
   outputError: document.getElementById("output-error"),
   shareLink: document.getElementById("share-link"),
+  calculate: document.getElementById("calculate"),
 };
 
 const fieldGroups = {
@@ -490,7 +491,15 @@ function disableOutputs(message) {
 
 function enableOutputs() {
   elements.outputArea.classList.remove("output-disabled");
+  elements.outputArea.classList.remove("output-stale");
   elements.outputError.textContent = "";
+}
+
+function markOutputsStale() {
+  elements.outputArea.classList.add("output-stale");
+  elements.outputError.textContent = "Press Calculate to refresh outputs.";
+  elements.lookupResult.textContent = "--";
+  currentData = null;
 }
 
 function saveState(values) {
@@ -607,14 +616,6 @@ function updateApp() {
   enableOutputs();
 }
 
-function debounce(fn, delay) {
-  let timer;
-  return (...args) => {
-    clearTimeout(timer);
-    timer = setTimeout(() => fn(...args), delay);
-  };
-}
-
 function setIncotermDefaults(incoterm) {
   const defaults = INCOTERM_DEFAULTS[incoterm];
   if (!defaults) {
@@ -630,29 +631,49 @@ function init() {
   setIncotermDefaults(initialState.incoterm);
   updateDistributionVisibility(initialState.distribution);
 
-  const debouncedUpdate = debounce(updateApp, 150);
-
   Object.values(elements).forEach((el) => {
     if (el instanceof HTMLInputElement || el instanceof HTMLSelectElement) {
-      el.addEventListener("input", debouncedUpdate);
-      el.addEventListener("change", debouncedUpdate);
+      if (el === elements.lookup) {
+        return;
+      }
+      el.addEventListener("input", () => {
+        saveState(readInputs());
+        markOutputsStale();
+      });
+      el.addEventListener("change", () => {
+        saveState(readInputs());
+        markOutputsStale();
+      });
     }
   });
 
   elements.incoterm.addEventListener("change", (event) => {
     setIncotermDefaults(event.target.value);
-    debouncedUpdate();
+    saveState(readInputs());
+    markOutputsStale();
   });
 
   elements.distribution.addEventListener("change", (event) => {
     updateDistributionVisibility(event.target.value);
   });
 
+  elements.lookup.addEventListener("input", () => {
+    const values = readInputs();
+    saveState(values);
+    if (currentData) {
+      updateLookup(values.lookup, currentData.leadTimes, currentData.distribution);
+    } else {
+      elements.lookupResult.textContent = "--";
+    }
+  });
+
   elements.shareLink.addEventListener("click", () => {
     copyShareLink(readInputs());
   });
 
-  updateApp();
+  elements.calculate.addEventListener("click", updateApp);
+
+  markOutputsStale();
 }
 
 init();

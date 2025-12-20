@@ -58,10 +58,32 @@ h1 {
 }
 
 .layout {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-  gap: 1.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 2rem;
   padding: 1.5rem clamp(1.5rem, 3vw, 3.5rem) 3rem;
+}
+
+.zone {
+  display: grid;
+  gap: 1.25rem;
+}
+
+.zone-header h2 {
+  margin: 0;
+  font-size: 1.5rem;
+}
+
+.zone-header p {
+  margin: 0.35rem 0 0;
+  color: var(--muted);
+  font-size: 0.9rem;
+}
+
+.input-grid {
+  display: grid;
+  gap: 1.25rem;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
 }
 
 .card {
@@ -76,6 +98,11 @@ h1 {
 .card-header h2 {
   margin: 0 0 0.35rem;
   font-size: 1.35rem;
+}
+
+.card-header h3 {
+  margin: 0 0 0.35rem;
+  font-size: 1.15rem;
 }
 
 .card-header p {
@@ -148,6 +175,22 @@ select:focus {
   box-shadow: var(--glow);
 }
 
+.calculate-row {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+.calculate-row .btn {
+  min-width: 180px;
+}
+
+.calculate-hint {
+  color: var(--muted);
+  font-size: 0.85rem;
+}
+
 .mini-chart {
   margin-top: 1.5rem;
   padding: 0.75rem;
@@ -158,9 +201,8 @@ select:focus {
 
 .output-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
   gap: 1.25rem;
-  margin-top: 1.5rem;
 }
 
 .output-card {
@@ -176,8 +218,12 @@ select:focus {
   color: var(--accent);
 }
 
+.output-card canvas {
+  max-height: 190px;
+}
+
 .table-wrap {
-  max-height: 320px;
+  max-height: 240px;
   overflow: auto;
 }
 
@@ -225,6 +271,10 @@ tbody td {
 .output-disabled {
   opacity: 0.35;
   pointer-events: none;
+}
+
+.output-stale {
+  opacity: 0.6;
 }
 
 @media (min-width: 900px) {
