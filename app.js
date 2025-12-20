@@ -87,6 +87,34 @@ function parseDurationHours(value) {
   return hours + minutes / 60;
 }
 
+function formatDurationHHMM(hours) {
+  const totalMinutes = Math.round(Number(hours) * 60);
+  if (!Number.isFinite(totalMinutes) || totalMinutes < 0) {
+    return "";
+  }
+  const h = Math.floor(totalMinutes / 60);
+  const m = totalMinutes % 60;
+  return `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}`;
+}
+
+function normalizeDurationForInput(value) {
+  if (typeof value === "string") {
+    const trimmed = value.trim();
+    if (DURATION_REGEX.test(trimmed)) {
+      return trimmed;
+    }
+    const num = Number.parseFloat(trimmed);
+    if (Number.isFinite(num)) {
+      return formatDurationHHMM(num);
+    }
+    return trimmed;
+  }
+  if (typeof value === "number") {
+    return formatDurationHHMM(value);
+  }
+  return "";
+}
+
 function formatTime(minutes) {
   const h = Math.floor(minutes / 60) % 24;
   const m = minutes % 60;
@@ -113,8 +141,20 @@ function formatCutoffTOD(minTOD) {
   return `${formatTime(1440 + (minTOD % 1440))} (prev day)`;
 }
 
+function formatLeadTimeHHMM(hours) {
+  const totalMinutes = Math.round(Number(hours) * 60);
+  if (!Number.isFinite(totalMinutes)) {
+    return "--:--";
+  }
+  const sign = totalMinutes < 0 ? "-" : "";
+  const abs = Math.abs(totalMinutes);
+  const h = Math.floor(abs / 60);
+  const m = abs % 60;
+  return `${sign}${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}`;
+}
+
 function formatHours(hours) {
-  return `${hours.toFixed(2)}h`;
+  return formatLeadTimeHHMM(hours);
 }
 
 function formatPercent(value) {
@@ -127,13 +167,7 @@ function formatDurationMinutes(minutes) {
   const abs = Math.abs(mins);
   const h = Math.floor(abs / 60);
   const m = abs % 60;
-  if (h <= 0) {
-    return `${sign}${m}m`;
-  }
-  if (m === 0) {
-    return `${sign}${h}h`;
-  }
-  return `${sign}${h}h ${m}m`;
+  return `${sign}${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}`;
 }
 
 function token(text, className) {
@@ -423,17 +457,17 @@ function clearErrors() {
 
 function applyState(state) {
   elements.incoterm.value = state.incoterm;
-  elements.rfc.value = state.rfc;
-  elements.transit.value = state.transit;
-  elements.lat.value = state.lat;
-  elements.flight.value = state.flight;
-  elements.toa.value = state.toa;
-  elements.customs.value = state.customs;
-  elements.lastMile.value = state.lastMile;
+  elements.rfc.value = normalizeDurationForInput(state.rfc);
+  elements.transit.value = normalizeDurationForInput(state.transit);
+  elements.lat.value = normalizeDurationForInput(state.lat);
+  elements.flight.value = normalizeDurationForInput(state.flight);
+  elements.toa.value = normalizeDurationForInput(state.toa);
+  elements.customs.value = normalizeDurationForInput(state.customs);
+  elements.lastMile.value = normalizeDurationForInput(state.lastMile);
   elements.flights.value = state.flights;
   elements.distribution.value = state.distribution;
   elements.peak.value = state.peak;
-  elements.sigma.value = state.sigma;
+  elements.sigma.value = normalizeDurationForInput(state.sigma);
   elements.cutoff.value = state.cutoff;
   elements.resolution.value = state.resolution;
   elements.lookup.value = state.lookup;
@@ -449,17 +483,17 @@ function updateDistributionVisibility(mode) {
 function readInputs() {
   return {
     incoterm: elements.incoterm.value,
-    rfc: parseNumber(elements.rfc.value),
-    transit: parseNumber(elements.transit.value),
-    lat: parseNumber(elements.lat.value),
-    flight: parseNumber(elements.flight.value),
-    toa: parseNumber(elements.toa.value),
-    customs: parseNumber(elements.customs.value),
-    lastMile: parseNumber(elements.lastMile.value),
+    rfc: parseDurationHours(elements.rfc.value),
+    transit: parseDurationHours(elements.transit.value),
+    lat: parseDurationHours(elements.lat.value),
+    flight: parseDurationHours(elements.flight.value),
+    toa: parseDurationHours(elements.toa.value),
+    customs: parseDurationHours(elements.customs.value),
+    lastMile: parseDurationHours(elements.lastMile.value),
     flights: elements.flights.value,
     distribution: elements.distribution.value,
     peak: elements.peak.value,
-    sigma: parseNumber(elements.sigma.value),
+    sigma: parseDurationHours(elements.sigma.value),
     cutoff: elements.cutoff.value,
     resolution: parseNumber(elements.resolution.value),
     lookup: elements.lookup.value,
@@ -482,8 +516,8 @@ function validateInputs(values) {
 
   timeFields.forEach((field) => {
     const value = values[field];
-    if (value === null || value < 0) {
-      showError(field, "Enter a number ≥ 0.");
+    if (value === null) {
+      showError(field, "Use HH:MM.");
       valid = false;
     }
   });
@@ -508,7 +542,7 @@ function validateInputs(values) {
       valid = false;
     }
     if (values.sigma === null || values.sigma <= 0) {
-      showError("sigma", "Sigma must be > 0.");
+      showError("sigma", "Use HH:MM (> 00:00).");
       valid = false;
     }
   }
@@ -711,7 +745,7 @@ const markerPlugin = {
 
       ctx.setLineDash([]);
       ctx.fillStyle = marker.color;
-      const label = `${marker.label}: ${marker.x.toFixed(2)}h`;
+      const label = `${marker.label}: ${formatLeadTimeHHMM(marker.x)}`;
       const labelWidth = ctx.measureText(label).width;
       const labelX = Math.min(
         Math.max(x + 6, chartArea.left + 6),
@@ -789,7 +823,7 @@ function updateCharts(data) {
       },
       options: chartOptions({
         kind: "service",
-        xLabel: "Lead time (h)",
+        xLabel: "Lead time (HH:MM)",
         yLabel: "Service level (%)",
       }),
     });
@@ -911,7 +945,7 @@ function chartOptions({ kind = "", xLabel = "", yLabel = "" }) {
             }
             if (kind === "service") {
               const x = item.parsed && item.parsed.x !== undefined ? item.parsed.x : Number(item.label);
-              return Number.isFinite(x) ? `Target: ${x.toFixed(2)}h` : "Target";
+              return Number.isFinite(x) ? `Target: ${formatLeadTimeHHMM(x)}` : "Target";
             }
             if (kind === "flight") {
               return `Flight: ${item.label}`;
@@ -966,6 +1000,11 @@ function chartOptions({ kind = "", xLabel = "", yLabel = "" }) {
 
   if (kind === "service") {
     opts.scales.x.type = "linear";
+    opts.scales.x.ticks = Object.assign({}, opts.scales.x.ticks, {
+      callback: (v) => formatLeadTimeHHMM(Number(v)),
+      maxRotation: 0,
+      minRotation: 0,
+    });
   }
 
   if (isPercent) {
@@ -984,7 +1023,7 @@ function updateTable(targets, serviceLevels) {
   targets.forEach((target, index) => {
     const row = document.createElement("tr");
     const targetCell = document.createElement("td");
-    targetCell.textContent = target.toFixed(2);
+    targetCell.textContent = formatLeadTimeHHMM(target);
     const slCell = document.createElement("td");
     slCell.textContent = `${serviceLevels[index].toFixed(2)}%`;
     row.appendChild(targetCell);
@@ -1196,8 +1235,8 @@ function setIncotermDefaults(incoterm) {
   if (!defaults) {
     return;
   }
-  elements.customs.value = defaults.customs;
-  elements.lastMile.value = defaults.lastMile;
+  elements.customs.value = formatDurationHHMM(defaults.customs);
+  elements.lastMile.value = formatDurationHHMM(defaults.lastMile);
 }
 
 function init() {
