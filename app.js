@@ -13,7 +13,7 @@ const DEFAULTS = {
   sigma: 3,
   cutoff: "15:00",
   resolution: 0.5,
-  lookup: 24,
+  lookup: "24:00",
 };
 
 const INCOTERM_DEFAULTS = {
@@ -470,7 +470,7 @@ function applyState(state) {
   elements.sigma.value = normalizeDurationForInput(state.sigma);
   elements.cutoff.value = state.cutoff;
   elements.resolution.value = state.resolution;
-  elements.lookup.value = state.lookup;
+  elements.lookup.value = normalizeDurationForInput(state.lookup);
   updateDistributionVisibility(state.distribution);
 }
 
@@ -556,7 +556,7 @@ function validateInputs(values) {
 
   const lookupHours = parseHoursOrTime(values.lookup);
   if (lookupHours === null || lookupHours < 0) {
-    showError("lookup", "Use HH:MM (24h) or a number ≥ 0.");
+    showError("lookup", "Use HH:MM (e.g. 24:00 or 29:30) or a number ≥ 0.");
     valid = false;
   }
 
