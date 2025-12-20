@@ -693,7 +693,6 @@ const markerPlugin = {
     ctx.save();
     ctx.lineWidth = 1;
     ctx.setLineDash([6, 4]);
-    ctx.textBaseline = "top";
     ctx.font = "12px Orbitron, Segoe UI, sans-serif";
 
     markers.forEach((marker) => {
@@ -713,8 +712,20 @@ const markerPlugin = {
       ctx.setLineDash([]);
       ctx.fillStyle = marker.color;
       const label = `${marker.label}: ${marker.x.toFixed(2)}h`;
-      const labelX = Math.min(Math.max(x + 6, chartArea.left + 6), chartArea.right - 140);
-      ctx.fillText(label, labelX, chartArea.top + 6);
+      const labelWidth = ctx.measureText(label).width;
+      const labelX = Math.min(
+        Math.max(x + 6, chartArea.left + 6),
+        Math.max(chartArea.left + 6, chartArea.right - labelWidth - 6)
+      );
+
+      const pos = marker.labelPosition || "top";
+      if (pos === "bottom") {
+        ctx.textBaseline = "bottom";
+        ctx.fillText(label, labelX, chartArea.bottom - 6);
+      } else {
+        ctx.textBaseline = "top";
+        ctx.fillText(label, labelX, chartArea.top + 6);
+      }
       ctx.setLineDash([6, 4]);
     });
 
@@ -821,8 +832,8 @@ function updateCharts(data) {
     );
     const p95 = weightedQuantile(data.leadTimes, data.distribution, 0.95);
     charts.service.options.plugins.leadTimeMarkers.markers = [
-      { label: "Avg", x: mean, color: "rgba(141, 246, 255, 0.9)" },
-      { label: "P95", x: p95 ?? mean, color: "rgba(255, 184, 77, 0.9)" },
+      { label: "Avg", x: mean, color: "rgba(141, 246, 255, 0.9)", labelPosition: "bottom" },
+      { label: "P95", x: p95 ?? mean, color: "rgba(255, 184, 77, 0.9)", labelPosition: "top" },
     ];
   }
 
