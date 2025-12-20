@@ -1,0 +1,187 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Airfreight Lead Time Estimator</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;600;700&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="styles.css" />
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+  </head>
+  <body>
+    <header class="page-header">
+      <p class="disclaimer">
+        <strong>Best possible lead time — not considering variability, strikes, weather, offloads*</strong><br />
+        <span
+          >*This tool uses deterministic inputs and ideal operational conditions. Real-world performance may be
+          worse.</span
+        >
+      </p>
+      <div class="title-row">
+        <div>
+          <h1>Airfreight Lead Time Estimator</h1>
+          <p class="subtitle">Deterministic, minute-level service analysis for airfreight operations.</p>
+        </div>
+        <button type="button" id="share-link" class="btn ghost">Share link</button>
+      </div>
+    </header>
+
+    <main class="layout">
+      <section class="card" aria-labelledby="parameters-title">
+        <div class="card-header">
+          <h2 id="parameters-title">Parameters</h2>
+          <p>Define your incoterm and processing times.</p>
+        </div>
+        <div class="form-grid">
+          <label class="field">
+            <span>Incoterm</span>
+            <select id="incoterm">
+              <option value="DPU">DPU (at cargo terminal)</option>
+              <option value="DAP">DAP (at customer door)</option>
+            </select>
+          </label>
+          <label class="field">
+            <span>RFC time (h)</span>
+            <input type="number" id="rfc" min="0" step="0.25" />
+            <small class="error" data-error-for="rfc"></small>
+          </label>
+          <label class="field">
+            <span>Transit to terminal (h)</span>
+            <input type="number" id="transit" min="0" step="0.25" />
+            <small class="error" data-error-for="transit"></small>
+          </label>
+          <label class="field">
+            <span>LAT before departure (h)</span>
+            <input type="number" id="lat" min="0" step="0.25" />
+            <small class="error" data-error-for="lat"></small>
+          </label>
+          <label class="field">
+            <span>Flight time (h)</span>
+            <input type="number" id="flight" min="0" step="0.25" />
+            <small class="error" data-error-for="flight"></small>
+          </label>
+          <label class="field">
+            <span>TOA at destination (h)</span>
+            <input type="number" id="toa" min="0" step="0.25" />
+            <small class="error" data-error-for="toa"></small>
+          </label>
+          <label class="field">
+            <span>Customs clearance (h)</span>
+            <input type="number" id="customs" min="0" step="0.25" />
+            <small class="error" data-error-for="customs"></small>
+          </label>
+          <label class="field">
+            <span>Last mile (h)</span>
+            <input type="number" id="lastMile" min="0" step="0.25" />
+            <small class="error" data-error-for="lastMile"></small>
+          </label>
+        </div>
+      </section>
+
+      <section class="card" aria-labelledby="flights-title">
+        <div class="card-header">
+          <h2 id="flights-title">Flights</h2>
+          <p>List scheduled departures to evaluate capacity.</p>
+        </div>
+        <label class="field">
+          <span>Departures (HH:MM, comma-separated)</span>
+          <input type="text" id="flights" placeholder="09:00, 21:00" />
+          <small class="error" data-error-for="flights"></small>
+        </label>
+      </section>
+
+      <section class="card" aria-labelledby="order-title">
+        <div class="card-header">
+          <h2 id="order-title">Order Behavior</h2>
+          <p>Model the order distribution across a day.</p>
+        </div>
+        <div class="form-grid">
+          <label class="field">
+            <span>Distribution</span>
+            <select id="distribution">
+              <option value="uniform">Uniform (flat)</option>
+              <option value="normal">Normal distribution</option>
+              <option value="cutoff">Order everything before…</option>
+            </select>
+          </label>
+          <label class="field" data-field="peak">
+            <span>Peak time (HH:MM)</span>
+            <input type="text" id="peak" placeholder="12:00" />
+            <small class="error" data-error-for="peak"></small>
+          </label>
+          <label class="field" data-field="sigma">
+            <span>Sigma (hours)</span>
+            <input type="number" id="sigma" min="0" step="0.25" />
+            <small class="error" data-error-for="sigma"></small>
+          </label>
+          <label class="field" data-field="cutoff">
+            <span>Cutoff time (HH:MM)</span>
+            <input type="text" id="cutoff" placeholder="15:00" />
+            <small class="error" data-error-for="cutoff"></small>
+          </label>
+        </div>
+        <div class="mini-chart">
+          <canvas id="distribution-chart" height="120"></canvas>
+        </div>
+      </section>
+
+      <section class="card" aria-labelledby="outputs-title">
+        <div class="card-header">
+          <h2 id="outputs-title">Outputs</h2>
+          <p>Resolution affects charts and table granularity.</p>
+        </div>
+        <div class="form-grid">
+          <label class="field">
+            <span>Resolution</span>
+            <select id="resolution">
+              <option value="1">1.0h</option>
+              <option value="0.5">0.5h</option>
+              <option value="0.25">0.25h</option>
+            </select>
+          </label>
+          <label class="field">
+            <span>Lookup target (hours)</span>
+            <input type="number" id="lookup" min="0" step="0.25" />
+            <small class="error" data-error-for="lookup"></small>
+          </label>
+          <div class="lookup-result">
+            <span class="label">Achievable service level</span>
+            <strong id="lookup-result">--</strong>
+          </div>
+        </div>
+        <div class="output-grid" id="output-area">
+          <div class="output-card">
+            <h3>Service level vs target</h3>
+            <canvas id="service-chart" height="220"></canvas>
+          </div>
+          <div class="output-card">
+            <h3>Requests per flight</h3>
+            <canvas id="flight-chart" height="220"></canvas>
+          </div>
+          <div class="output-card table-card">
+            <h3>Lead time table</h3>
+            <div class="table-wrap">
+              <table id="service-table">
+                <thead>
+                  <tr>
+                    <th>Lead time target (h)</th>
+                    <th>Service level (%)</th>
+                  </tr>
+                </thead>
+                <tbody></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+        <p class="output-error" id="output-error" aria-live="polite"></p>
+      </section>
+    </main>
+
+    <script src="app.js"></script>
+  </body>
+</html>
