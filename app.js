@@ -1150,6 +1150,7 @@ function loadState() {
 
   const params = new URLSearchParams(window.location.search);
   const urlValues = Object.fromEntries(params.entries());
+  const isPlainNumber = (value) => /^-?\d+(\.\d+)?$/.test(String(value).trim());
 
   const merged = {
     ...DEFAULTS,
@@ -1158,8 +1159,8 @@ function loadState() {
 
   Object.entries(urlValues).forEach(([key, value]) => {
     if (key in merged) {
-      const numberValue = Number.parseFloat(value);
-      if (!Number.isNaN(numberValue) && value !== "") {
+      if (value !== "" && isPlainNumber(value)) {
+        const numberValue = Number.parseFloat(value);
         merged[key] = numberValue;
       } else {
         merged[key] = value;
