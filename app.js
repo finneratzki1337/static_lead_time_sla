@@ -1152,6 +1152,10 @@ function loadState() {
   const urlValues = Object.fromEntries(params.entries());
   const isPlainNumber = (value) => /^-?\d+(\.\d+)?$/.test(String(value).trim());
 
+  const overrides = new Set(
+    Object.keys(persisted).filter((key) => Object.prototype.hasOwnProperty.call(DEFAULTS, key))
+  );
+
   const merged = {
     ...DEFAULTS,
     ...persisted,
@@ -1159,6 +1163,7 @@ function loadState() {
 
   Object.entries(urlValues).forEach(([key, value]) => {
     if (key in merged) {
+      overrides.add(key);
       if (value !== "" && isPlainNumber(value)) {
         const numberValue = Number.parseFloat(value);
         merged[key] = numberValue;
@@ -1168,7 +1173,7 @@ function loadState() {
     }
   });
 
-  return merged;
+  return { values: merged, overrides };
 }
 
 function buildShareLink(values) {
@@ -1264,19 +1269,29 @@ function updateApp() {
   }
 }
 
-function setIncotermDefaults(incoterm) {
+function setIncotermDefaults(
+  incoterm,
+  { forceCustoms = true, forceLastMile = true } = {}
+) {
   const defaults = INCOTERM_DEFAULTS[incoterm];
   if (!defaults) {
     return;
   }
-  elements.customs.value = formatDurationHHMM(defaults.customs);
-  elements.lastMile.value = formatDurationHHMM(defaults.lastMile);
+  if (forceCustoms) {
+    elements.customs.value = formatDurationHHMM(defaults.customs);
+  }
+  if (forceLastMile) {
+    elements.lastMile.value = formatDurationHHMM(defaults.lastMile);
+  }
 }
 
 function init() {
-  const initialState = loadState();
+  const { values: initialState, overrides } = loadState();
   applyState(initialState);
-  setIncotermDefaults(initialState.incoterm);
+  setIncotermDefaults(initialState.incoterm, {
+    forceCustoms: !overrides.has("customs"),
+    forceLastMile: !overrides.has("lastMile"),
+  });
   updateDistributionVisibility(initialState.distribution);
   refreshOrderBehaviorChart();
 
